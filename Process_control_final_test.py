@@ -535,7 +535,7 @@ def line_chart(process_select):
           #shared_xaxes=True, # share same axis
           #vertical_spacing=0.05, # adjust spacing between charts
           #column_widths=[0.8, 0.2],
-          subplot_titles=list(df_dict.keys()) # dict with key is process name and value is list of dim (contain name, cp, cpk...)
+          subplot_titles=(name_list_dict[process_name]) # dict with key is process name and value is list of dim (contain name, cp, cpk...)
       )
       for name in list(df_dict.keys()): #also group
         df=df_dict[name].copy()
