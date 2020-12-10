@@ -1,5 +1,6 @@
 #Clear all
 # add from spyder
+
 import streamlit as st
 import seaborn as sns; sns.set()
 import pandas as pd
@@ -16,13 +17,15 @@ import glob
 import xlrd
 
 #-----------------Design_layout main side-----------------#
+#trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000'
+trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
 st.markdown('<style>h1{color: green;}</style>', unsafe_allow_html=True)
 st.title('Process quality control')
 
 st.subheader('Created by: DNN')
 st.header("Information")
 
-text2= st.text_input("1. Please input folder name for data analysis (MUST)",'//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000')
+text2= st.text_input("1. Please input folder name for data analysis (MUST)",trial_path)
 path=text2 +'/'
 #path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Membrane 3000S/'
 #st.write('path input: '+path)
@@ -275,9 +278,13 @@ def create_process_indicator(base_week):
         #print(dim_name)
         df=df_dict[dim_name]
         #print(dim_name)
-        #try: # object column cannot be calculated process indicator (OK/Not OK, all value have the same...) How to remove object colum in the beginning ?
-        Cp,Cpk,Pp,Ppk=process_performance(df) 
-        #except: continue
+        try: # debug purpose
+            Cp,Cpk,Pp,Ppk=process_performance(df) 
+        except:
+            continue # sigma = 0 phai continue de tranh dung chuong trinh
+            #print(process_name)
+            #print(dim_name)
+            #print(df)
         #process_indicator_dict[process_name]=[dim_name,Cp,Pp,Cpk,Ppk]
         process_indicator_df.loc[i]=process_name,dim_name,Cp, Pp, Cpk, Ppk
         i+=1
@@ -291,12 +298,15 @@ def create_process_indicator(base_week):
     for process_name in list(base_week.keys()):
       dim_infor_string_list=[]
       for dim_name in list(base_week[process_name].keys()):
-        dim_infor_string=str(dim_name) + ' Cp: ' + str(a[(a.Process_name==process_name) & (a.Dim_name==dim_name)]['Cp'].values[0]) + ' Pp: '+ \
-        str(a[(a.Process_name==process_name) & (a.Dim_name==dim_name)]['Pp'].values[0]) +' Cpk: ' \
-        + str(a[(a.Process_name==process_name) & (a.Dim_name==dim_name)]['Cpk'].values[0]) +' Ppk: '+ \
-        str(a[(a.Process_name==process_name) & (a.Dim_name==dim_name)]['Ppk'].values[0]) 
-
-        dim_infor_string_list.append(dim_infor_string)
+        try:  
+            dim_infor_string=str(dim_name) + ' Cp: ' + str(a[(a.Process_name==process_name) & (a.Dim_name==dim_name)]['Cp'].values[0]) + ' Pp: '+ \
+            str(a[(a.Process_name==process_name) & (a.Dim_name==dim_name)]['Pp'].values[0]) +' Cpk: ' \
+            + str(a[(a.Process_name==process_name) & (a.Dim_name==dim_name)]['Cpk'].values[0]) +' Ppk: '+ \
+            str(a[(a.Process_name==process_name) & (a.Dim_name==dim_name)]['Ppk'].values[0]) 
+    
+            dim_infor_string_list.append(dim_infor_string)
+        except: # if no process indicator (sigma=0, no Cp, Cpk...) so need continue (he qua cua try except tren)
+            continue
 
       name_list_dict[process_name]=dim_infor_string_list
       #name_list.append(dim_name)
@@ -342,6 +352,66 @@ st.write('Skip this step or leave it blank if you need full time range')
 start_date= st.text_input("Please input start Date (Ex: 2018, 2018/07, 2018/07/31)")
 end_date= st.text_input("Please input end Date (Ex:  2019, 2019/08, 2018/08/20)")
 
+#------------------------Control Chart group by hour--------------------------------------#
+st.header("Control chart group by hour")
+
+#@st.cache(suppress_st_warning=True,allow_output_mutation=True)
+@st.cache(suppress_st_warning=True,allow_output_mutation=True)
+def line_chart(process_select):
+    fig_all=[]
+    for process_name in process_select:
+      df_dict=final_data[process_name] # process name
+      i=1
+      #Layout
+      fig = make_subplots(          # Dim name
+          rows=len(df_dict), cols=1,
+          #shared_xaxes=True, # share same axis
+          #vertical_spacing=0.05, # adjust spacing between charts
+          #column_widths=[0.8, 0.2],
+          subplot_titles=(name_list_dict[process_name]) # dict with key is process name and value is list of dim (contain name, cp, cpk...)
+      )
+      for name in list(df_dict.keys()): #also group
+        df=df_dict[name].copy()
+        df=df.sort_values(by=['Hour'])
+        for a in df.columns[1:]:
+          df[a] = df[a].round(decimals=3)
+        df=df.reset_index(drop=True)
+        # Draw control chart
+        df_group=df.groupby('Hour').mean()
+        #df=df.set_index('Date')
+        if start_date != '' and end_date != '':
+            df_group=df_group[start_date:end_date]
+        #Control chart 1 
+        fig.append_trace(go.Scatter(
+                                x=df_group.index, y=df_group['Value'],mode='lines+markers',
+                                name='mean ', 
+                                line=dict( color='#4280F5')
+                                ),row=i, col=1)
+        #USL, LSL
+        fig.append_trace(go.Scatter(x=df_group.index, y=df_group['USL'],name='USL ', line=dict( color='#FF5733'),mode='lines'),row=i, col=1)
+        fig.append_trace(go.Scatter(x=df_group.index, y=df_group['LSL'],name='LSL ',line=dict( color='#FF5733'),mode='lines'),row=i, col=1)
+        #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['Nominal'],name='Nominal ',line=dict( color='#FF5733'),mode='lines'),row=i, col=1)
+        # UCL, LCL
+        #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['UCL'],name='UCL ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
+        #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['LCL'],name='LCL ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
+        #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['Mean'],name='Mean ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
+        i=i+1
+
+      if len(df_dict)>1:
+        fig.update_layout(height=200*len(df_dict), width=1200, title_text='Process: '+process_name)
+      else:
+        fig.update_layout(height=300, width=1200, title_text='Process: '+process_name)
+      #fig update each process (contain a lot of dim inside)
+      #fig.show()
+      fig_all.append(fig)  
+    return fig_all # fig nay chi la 1 process cuoi cung thoi, lam sao return toan bo fig ?
+
+
+if st.checkbox('Please tick to this box if you need to show control chart'):
+    fig_all=line_chart(process_select)    
+    for fig in fig_all:
+        st.plotly_chart(fig)
+        
 #------------------------Box plot Chart by hour--------------------------------------#
 
 st.header("Box chart by hour")
@@ -519,66 +589,7 @@ if st.checkbox('Show box chart by week'):
     fig_all_2=box_chart_2(process_select)    
     for fig in fig_all_2:
         st.plotly_chart(fig)
-#------------------------Line Chart group by shift--------------------------------------#
-st.header("Control chart group by hour")
 
-#@st.cache(suppress_st_warning=True,allow_output_mutation=True)
-@st.cache(suppress_st_warning=True,allow_output_mutation=True)
-def line_chart(process_select):
-    fig_all=[]
-    for process_name in process_select:
-      df_dict=final_data[process_name] # process name
-      i=1
-      #Layout
-      fig = make_subplots(          # Dim name
-          rows=len(df_dict), cols=1,
-          #shared_xaxes=True, # share same axis
-          #vertical_spacing=0.05, # adjust spacing between charts
-          #column_widths=[0.8, 0.2],
-          subplot_titles=(name_list_dict[process_name]) # dict with key is process name and value is list of dim (contain name, cp, cpk...)
-      )
-      for name in list(df_dict.keys()): #also group
-        df=df_dict[name].copy()
-        df=df.sort_values(by=['Hour'])
-        for a in df.columns[1:]:
-          df[a] = df[a].round(decimals=3)
-        df=df.reset_index(drop=True)
-        # Draw control chart
-        df_group=df.groupby('Hour').mean()
-        #df=df.set_index('Date')
-        if start_date != '' and end_date != '':
-            df_group=df_group[start_date:end_date]
-        #Control chart 1 
-        fig.append_trace(go.Scatter(
-                                x=df_group.index, y=df_group['Value'],mode='lines+markers',
-                                name='mean ', 
-                                line=dict( color='#4280F5')
-                                ),row=i, col=1)
-        #USL, LSL
-        fig.append_trace(go.Scatter(x=df_group.index, y=df_group['USL'],name='USL ', line=dict( color='#FF5733'),mode='lines'),row=i, col=1)
-        fig.append_trace(go.Scatter(x=df_group.index, y=df_group['LSL'],name='LSL ',line=dict( color='#FF5733'),mode='lines'),row=i, col=1)
-        #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['Nominal'],name='Nominal ',line=dict( color='#FF5733'),mode='lines'),row=i, col=1)
-        # UCL, LCL
-        #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['UCL'],name='UCL ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
-        #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['LCL'],name='LCL ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
-        #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['Mean'],name='Mean ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
-        i=i+1
-
-      if len(df_dict)>1:
-        fig.update_layout(height=200*len(df_dict), width=1200, title_text='Process: '+process_name)
-      else:
-        fig.update_layout(height=300, width=1200, title_text='Process: '+process_name)
-      #fig update each process (contain a lot of dim inside)
-      #fig.show()
-      fig_all.append(fig)  
-    return fig_all # fig nay chi la 1 process cuoi cung thoi, lam sao return toan bo fig ?
-
-
-if st.checkbox('Please tick to this box if you need to show control chart'):
-    fig_all=line_chart(process_select)    
-    for fig in fig_all:
-        st.plotly_chart(fig)
-    
 #---------------------------DataFrame----------------------------
 st.header("Data Frame")
 if st.checkbox('Show dataframe'):
