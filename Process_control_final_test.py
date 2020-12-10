@@ -1,7 +1,4 @@
-# add something from vs code dnn
-# add something 2
-# add something 3
-# update new branch
+#Clear all
 import streamlit as st
 import seaborn as sns; sns.set()
 import pandas as pd
