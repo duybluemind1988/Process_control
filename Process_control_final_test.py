@@ -1,4 +1,5 @@
 #Clear all
+# add from spyder
 import streamlit as st
 import seaborn as sns; sns.set()
 import pandas as pd
