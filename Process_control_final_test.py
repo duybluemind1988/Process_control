@@ -18,7 +18,8 @@ import xlrd
 
 #-----------------Design_layout main side-----------------#
 #trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000'
-trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
+#trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
+trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan E series 1'
 st.markdown('<style>h1{color: green;}</style>', unsafe_allow_html=True)
 st.title('Process quality control')
 
@@ -549,7 +550,7 @@ def box_chart_2(process_select):
       for name in list(df_dict.keys()): #also group
         df=df_dict[name].copy()
         df=df.sort_values(by=['Hour'])
-        df['Week']=df['Hour'].dt.strftime('%Y-%U')
+        df['Week']=df['Hour'].dt.strftime('%Y-w%U')
         #df['Week']=pd.to_datetime(df['Week'])
         cols = df.columns.tolist()
         cols = cols[-1:] + cols[:-1]
