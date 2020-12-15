@@ -17,9 +17,8 @@ import glob
 import xlrd
 
 #-----------------Design_layout main side-----------------#
-#trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000'
-trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
-#trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 2600'
+trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000'
+#trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
 #trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan E series 1'
 st.markdown('<style>h1{color: green;}</style>', unsafe_allow_html=True)
 st.title('Process quality control')
@@ -61,16 +60,7 @@ all_files=all_files1+all_files2
 all_files = sorted(all_files, reverse = False)
 st.text('number of files: '+str(len(all_files)))
 st.text(all_files)
-# Get master sheet dataframe:
-@st.cache(suppress_st_warning=True)
-def master_sheet_data_func(all_files):
-    path_name=all_files[-1] # get latest file
-    xls = xlrd.open_workbook(path_name, on_demand=True)
-    sheet_names=xls.sheet_names()
-    master_sheet_name=sheet_names[0] 
-    master_sheet=pd.read_excel(xls, master_sheet_name)
-    return master_sheet
-master_sheet_data=master_sheet_data_func(all_files)
+
 #---------------process data-------------------------# 
 #@st.cache(suppress_st_warning=True,allow_output_mutation=True)
 @st.cache(suppress_st_warning=True,allow_output_mutation=True)
@@ -154,7 +144,7 @@ st.text('number of week: '+str(len(all_process_week2)))
 
 #@st.cache(suppress_st_warning=True,allow_output_mutation=True)
 @st.cache(suppress_st_warning=True,allow_output_mutation=True)
-def concat_baseweek(master_sheet_data,all_process_week):
+def concat_baseweek(all_process_week):
     base_week={}
     #Shallow copy: (wrong, reference to wk 37)
     #base_week=all_process_week[list(all_process_week.keys())[-1]].copy() # must have copy()
@@ -178,24 +168,6 @@ def concat_baseweek(master_sheet_data,all_process_week):
                   base_week[process_name_base][dim_name]=base_week[process_name_base][dim_name].append(other_week[process_name_base][dim_name]) 
                   # sử dụng hàm append có thể concat empty dataframe tất cả các week
                   #except:continue
-    # 15/12/2020 Change sheet name to process name in baseweek data:  
-    all_sheet_name=copy.deepcopy(list(base_week.keys()))
-    sheet_name_column='Unnamed: 1'
-    process_name_column="Unnamed: 4"
-    def isNaN(string):
-        return string != string
-    for name_sheet in all_sheet_name:
-        #print(name_sheet)
-        try:
-            process_name=master_sheet_data.loc[master_sheet_data[sheet_name_column] == name_sheet][process_name_column].values[0]
-        except:
-            process_name=name_sheet
-        #print(process_name)
-   
-        if process_name!=name_sheet and isNaN(process_name)!= True: # chi thay doi ten dict neu 2 name khac nhau va process name != nan
-            base_week[process_name] = base_week[name_sheet]
-            del base_week[name_sheet]   
-        
     # Check len all dim in base week for remove zero dim and zero process
     process_name_list=[]
     dim_name_list=[]
@@ -226,7 +198,7 @@ def concat_baseweek(master_sheet_data,all_process_week):
         base_week.pop(process_name,None)
     return base_week
 
-final_data=concat_baseweek(master_sheet_data,all_process_week2)    
+final_data=concat_baseweek(all_process_week2)    
 #print(base_week['39682'])
 st.text('number of process in line: '+str(len(final_data)))
 
