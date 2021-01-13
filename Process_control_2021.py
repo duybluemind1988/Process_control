@@ -96,7 +96,8 @@ def create_sheet_dict(all_files):
         sheet=sheet_dict[name_sheet]
 
         # find begin and end col
-        values_col=sheet.iloc[22,:]
+        row_contain_feature_column = 22
+        values_col=sheet.iloc[row_contain_feature_column,:]
         values_col.reset_index(drop=True,inplace=True)  # Date, MSVN, DIM A,B,C....
         #print(values_col)
         #begin_col=values_col[values_col=='Kích thước\nDimension'].index
@@ -111,28 +112,32 @@ def create_sheet_dict(all_files):
         df_dict={} # add all value, USL, LSL, UCL... in each process sheet
         #try:
         for name in sheet.columns[begin_col[0]:end_col[-1]]: # all dim in each process (dim a, b, c,d ....)
-          dim_name=sheet[name][22]
+          dim_name=sheet[name][row_contain_feature_column]
           #print(dim_name)
           df=pd.DataFrame()
           df_dict[dim_name]= {} # them vao ngay 20/11, lưu tất cả dim name ke cả khi value = None
 
           #tolerance_dict[sheet[name][22]]=[sheet[name][24],sheet[name][23]]  
           try:  
-              df['Hour']=sheet[sheet.columns[9]][25:]
+              column_hour = 9
+              row_start_value = 25
+              df['Hour']=sheet[sheet.columns[column_hour]][row_start_value:]
               #print(df['Date'])
               df['Hour']=df['Hour'].apply(lambda x: x.strftime("%Y %m %d %H")) # group theo hour, gần như trùng với tần suất lấy mẫu đo control plan
               df['Hour']=pd.to_datetime(df['Hour'])
           except:
             continue
-          df['Value']=sheet[name][25:]
+          df['Value']=sheet[name][row_start_value:]
           #print(df['Value'])
           #if np.std(df.Value) == 0: # chuyển qua dim khac nếu các giá trị là giống nhau
           #  continue
           #print('susessful')
-          if isinstance(sheet[name][23],str): continue #check string USL 25/11
-          if isinstance(sheet[name][23],str): continue #check string LSL 25/11
-          df['USL']=sheet[name][23] # max
-          df['LSL']=sheet[name][24] # min
+          row_contain_usl = 23
+          row_contain_lsl = 24  
+          if isinstance(sheet[name][row_contain_usl],str): continue #check string USL 25/11
+          if isinstance(sheet[name][row_contain_usl],str): continue #check string LSL 25/11
+          df['USL']=sheet[name][row_contain_usl] # max
+          df['LSL']=sheet[name][row_contain_lsl] # min
           #print(df['USL'],df['LSL'])  
           df.dropna(subset=['Value'],inplace=True)
           df=df[pd.to_numeric(df['Value'], errors='coerce').notnull()] #25/11: loai bo duy nhật 1 cột Value có not numeric value truoc khi convert
@@ -258,9 +263,8 @@ def process_performance(df):
   #print('Pp:{:.2f} , Ppk: {:.2f}'.format(Pp,Ppk))
 
   #UCL, LCL, Mean
-  # Tu dong add tat ca du lieu vao base week df ma khong can return
   k=3
-  df['UCL']=df_temp['Hour'].mean() + sigma*k 
+  df['UCL']=df_temp['Hour'].mean() + sigma*k
   df['LCL']=df_temp['Hour'].mean() - sigma*k
   df['Mean']=df_temp['Hour'].mean()
   #Cpk
@@ -293,7 +297,7 @@ def process_performance(df):
   Cpk=round(Cpk,2)
   Pp=round(Pp,2)
   Ppk=round(Ppk,2)
-  return Cp,Cpk,Pp,Ppk
+  return df,Cp,Cpk,Pp,Ppk
 
 #-----------create_process_indicator-------------------
 @st.cache(suppress_st_warning=True,allow_output_mutation=True)
@@ -311,7 +315,7 @@ def create_process_indicator(base_week):
         df=df_dict[dim_name]
         #print(dim_name)
         try: # debug purpose
-            Cp,Cpk,Pp,Ppk=process_performance(df) 
+            df,Cp,Cpk,Pp,Ppk=process_performance(df) 
         except:
             continue # sigma = 0 phai continue de tranh dung chuong trinh
             #print(process_name)
@@ -342,9 +346,9 @@ def create_process_indicator(base_week):
 
       name_list_dict[process_name]=dim_infor_string_list
       #name_list.append(dim_name)
-    return  process_indicator_df,name_list_dict
+    return  base_week,process_indicator_df,name_list_dict
 
-process_indicator_df,name_list_dict= create_process_indicator(final_data)
+final_data,process_indicator_df,name_list_dict= create_process_indicator(final_data)
 
 #------------------------Show process indicator-----------------------------#
 st.subheader("Process indicator: Cp, Pb, Cpk, Ppk")
@@ -424,9 +428,9 @@ def line_chart(process_select):
         fig.append_trace(go.Scatter(x=df_group.index, y=df_group['LSL'],name='LSL ',line=dict( color='#FF5733'),mode='lines'),row=i, col=1)
         #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['Mean'],name='Nominal ',line=dict( color='#FF5733'),mode='lines'),row=i, col=1)
         # UCL, LCL
-        #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['UCL'],name='UCL ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
-        #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['LCL'],name='LCL ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
-        #fig.append_trace(go.Scatter(x=df_group.index, y=df_group['Mean'],name='Mean ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
+        fig.append_trace(go.Scatter(x=df_group.index, y=df_group['UCL'],name='UCL ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
+        fig.append_trace(go.Scatter(x=df_group.index, y=df_group['LCL'],name='LCL ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
+        fig.append_trace(go.Scatter(x=df_group.index, y=df_group['Mean'],name='Mean ', line=dict( color='#33C2FF'),mode='lines'),row=i, col=1)
         i=i+1
 
       if len(df_dict)>1:
