@@ -260,9 +260,9 @@ def process_performance(df):
   #UCL, LCL, Mean
   # Tu dong add tat ca du lieu vao base week df ma khong can return
   k=3
-  df['UCL']=df_temp['Hour'].mean() + sigma*k 
-  df['LCL']=df_temp['Hour'].mean() - sigma*k
-  df['Mean']=df_temp['Hour'].mean()
+  df['UCL']=df_temp['Value'].mean() + sigma*k  # Hour
+  df['LCL']=df_temp['Value'].mean() - sigma*k # Hour
+  df['Mean']=df_temp['Value'].mean() # Hour
   #Cpk
   
   temp=df_temp.groupby('Hour').agg({'Value':['min','max']})
