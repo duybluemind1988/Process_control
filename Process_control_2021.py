@@ -76,7 +76,7 @@ master_sheet_data=master_sheet_data_func(all_files)
 @st.cache(suppress_st_warning=True,allow_output_mutation=True)
 def create_sheet_dict(all_files):
   all_process_week={}
-  for path_name in all_files[:2]: # Đọc 2 file đầu tiên thôi
+  for path_name in all_files: # Đọc 2 file đầu tiên thôi
     week_name=path_name[-16:-5]
     print(week_name,'-'*20)
     #print(path_name)
@@ -89,7 +89,7 @@ def create_sheet_dict(all_files):
     #    sheet_dict[name] = pd.read_excel(xls, name)
     sheet_all={} # most important (reset sheet_all to empty)
     sheet_error=[]
-    for name_sheet in sheet_names[1:]: # Đọc 1 sheet thôi
+    for name_sheet in sheet_names[1:]: # Đọc tat ca tru sheet 1 (chua name process)
       print(name_sheet)
       #if name_sheet!='83748-Check Golden samples': continue # debug each name sheet
       sheet_dict[name_sheet] = pd.read_excel(xls, name_sheet)
@@ -238,15 +238,20 @@ def process_performance(df):
     19:3.689,20:3.735,
     }  
   #print('dim: ',name)
-  n=df.Hour.value_counts()[0]
-  num_sample=n*25
-  df_temp=df[-num_sample:]
-  df_temp=df_temp.reset_index(drop=True)
+  # Calculate sigma
+  sigma=np.std(df.Value)
+  n=df.Hour.value_counts()[0] # check sub group num
+  # Method 1: Collect only 25 group sample for calculation # Sẽ có 33 dim name / 14 process
+  #num_sample=n*25
+  #df_temp=df[-num_sample:]
+  #df_temp=df_temp.reset_index(drop=True)
+  # Method 2: Not collect 25 group sample, use full #  có 33 dim name / 14 process
+  df_temp=df.reset_index(drop=True) # Tai sao phải reset index ?
+
+  # Calculae usl, lsl
   usl=df_temp.USL[0]
   lsl=df_temp.LSL[0]
   m=df_temp.Value.mean() 
-  # Calculate sigma
-  sigma=np.std(df.Value)
     
   if sigma ==0 :
       Mean=df_temp['Value'].mean()
