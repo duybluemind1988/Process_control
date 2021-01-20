@@ -75,82 +75,74 @@ master_sheet_data=master_sheet_data_func(all_files)
 #@st.cache(suppress_st_warning=True,allow_output_mutation=True)
 @st.cache(suppress_st_warning=True,allow_output_mutation=True)
 def create_sheet_dict(all_files):
-    all_process_week={}
-    for path_name in all_files: # read each excel file
-      week_name=path_name[-16:-5]
-      print(week_name,'-'*20)
-      xls = xlrd.open_workbook(path_name, on_demand=True)
-      sheet_names=xls.sheet_names()
-      #print(xls.sheet_names())
-      sheet_dict={}
-      xls = pd.ExcelFile(path_name) 
-      for name in sheet_names: # read each sheet in excel file
-        sheet_dict[name] = pd.read_excel(xls, name)
-        #sheet_dict[name].to_excel(name+'.xlsx')
-      #break
-      # Read all process in one week
-      sheet_all={} # most important (reset sheet_all to empty)
-      sheet_error=[]
-      for name_sheet in sheet_names[1:]: # read each sheet name (process)
-        #print(name_sheet)
-        sheet=sheet_dict[name_sheet]
-
-        # find begin and end col
-        row_contain_feature_column = 22
-        values_col=sheet.iloc[row_contain_feature_column,:]
-        values_col.reset_index(drop=True,inplace=True)  # Date, MSVN, DIM A,B,C....
-        #print(values_col)
-        #begin_col=values_col[values_col=='Kích thước\nDimension'].index
-        begin_col=values_col[values_col.str.contains('Dime')==True].index #sửa lại ngày 2/11/2021, begin col la col bat dau lay du lieu
-        begin_col=begin_col+1
-        end_col=values_col[values_col.str.contains('MSNV|OP')==True].index # end coil la col dung lai sau khi ket thuc lay du lieu
-        #if (not begin_col.values or not end_col.values): #check empty value in begin and end col (khong co Dime or MSVN/OP, thuong la cac cong doang can do khoi luong)
-        #    continue
-        if (not begin_col.values): continue #check empty value in begin col only (not end coil due to end coil always have MSNV or OP)
-        #print(begin_col,end_col)
-
-        df_dict={} # add all value, USL, LSL, UCL... in each process sheet
-        #try:
-        for name in sheet.columns[begin_col[0]:end_col[-1]]: # all dim in each process (dim a, b, c,d ....)
+  all_process_week={}
+  for path_name in all_files[:2]: # Đọc 2 file đầu tiên thôi
+    week_name=path_name[-16:-5]
+    print(week_name,'-'*20)
+    #print(path_name)
+    xls = xlrd.open_workbook(path_name, on_demand=True)
+    sheet_names=xls.sheet_names()
+    #print(xls.sheet_names())
+    sheet_dict={}
+    xls = pd.ExcelFile(path_name) 
+    #for name in sheet_names: # read each sheet in excel file
+    #    sheet_dict[name] = pd.read_excel(xls, name)
+    sheet_all={} # most important (reset sheet_all to empty)
+    sheet_error=[]
+    for name_sheet in sheet_names[1:]: # Đọc 1 sheet thôi
+      print(name_sheet)
+      #if name_sheet!='83748-Check Golden samples': continue # debug each name sheet
+      sheet_dict[name_sheet] = pd.read_excel(xls, name_sheet)
+      sheet=sheet_dict[name_sheet]
+      # Tim begin col và end col
+      row_contain_indicate_feature_column = 21
+      values_col=sheet.iloc[row_contain_indicate_feature_column,:]
+      values_col.reset_index(drop=True,inplace=True)  # Date, MSVN, DIM A,B,C....
+      begin_col=values_col.first_valid_index()
+      end_col=values_col.last_valid_index()
+      if end_col==begin_col: # for loop did not allow same value
+          end_col=end_col+1
+      df_dict={} # add all value, USL, LSL, UCL... in each process sheet
+      for name in sheet.columns[begin_col:(end_col+1)]: 
+          row_contain_feature_column=22
           dim_name=sheet[name][row_contain_feature_column]
-          #print(dim_name)
           df=pd.DataFrame()
-          df_dict[dim_name]= {} # them vao ngay 20/11, lưu tất cả dim name ke cả khi value = None
-
-          #tolerance_dict[sheet[name][22]]=[sheet[name][24],sheet[name][23]]  
-          try:  
-              column_hour = 9
-              row_start_value = 25
+          df_dict[dim_name]={}
+          # Add time value (hour) to data:
+          column_hour = 9
+          row_start_value = 25
+          try:
               df['Hour']=sheet[sheet.columns[column_hour]][row_start_value:]
               #print(df['Date'])
               df['Hour']=df['Hour'].apply(lambda x: x.strftime("%Y %m %d %H")) # group theo hour, gần như trùng với tần suất lấy mẫu đo control plan
               df['Hour']=pd.to_datetime(df['Hour'])
-          except:
-            continue
+              #print(df['Hour'])
+          except Exception as e: 
+              print(e)
+              continue
           df['Value']=sheet[name][row_start_value:]
-          #print(df['Value'])
-          #if np.std(df.Value) == 0: # chuyển qua dim khac nếu các giá trị là giống nhau
-          #  continue
-          #print('susessful')
+          #print(df["Value"])
           row_contain_usl = 23
           row_contain_lsl = 24  
-          if isinstance(sheet[name][row_contain_usl],str): continue #check string USL 25/11
-          if isinstance(sheet[name][row_contain_usl],str): continue #check string LSL 25/11
+          if isinstance(sheet[name][row_contain_usl],str): 
+              continue #check string USL 25/11
+          if isinstance(sheet[name][row_contain_usl],str): 
+              continue #check string LSL 25/11
           df['USL']=sheet[name][row_contain_usl] # max
           df['LSL']=sheet[name][row_contain_lsl] # min
-          #print(df['USL'],df['LSL'])  
+          #print(df['USL'],df['LSL'])
           df.dropna(subset=['Value'],inplace=True)
+          # Convert to numeric
           df=df[pd.to_numeric(df['Value'], errors='coerce').notnull()] #25/11: loai bo duy nhật 1 cột Value có not numeric value truoc khi convert
-          #df=df[df.columns[1:]].apply(pd.to_numeric, errors='coerce').dropna() # loai bo tat ca not numeric value truoc khi convert
+          # Convert all column data to float (except first column-date)
           df[df.columns[1:]]=df[df.columns[1:]].astype('float32')
-
+          #print(df)
           df_dict[dim_name]=df.reset_index(drop=True)
 
-        sheet_all[name_sheet]=df_dict # add each process name to shee_all dict each week
-        #sheet_all chi chứa name_sheet (process), khong chứa dim name nếu như không có dữ liệu, lưu ý thông tin này khi concat dữ liệu dưới đây
-      all_process_week[week_name]=sheet_all
-      print(week_name,sheet_error)
-    return all_process_week
+      sheet_all[name_sheet]=df_dict # add each process name to shee_all dict each week
+    all_process_week[week_name]=sheet_all
+    #print(week_name,sheet_error)
+  return all_process_week
 
 all_process_week2=create_sheet_dict(all_files) # Run function above
 st.text('number of week: '+str(len(all_process_week2)))
@@ -253,51 +245,62 @@ def process_performance(df):
   usl=df_temp.USL[0]
   lsl=df_temp.LSL[0]
   m=df_temp.Value.mean() 
-
-  #Ppk
+  # Calculate sigma
   sigma=np.std(df.Value)
-  Pp = float(usl - lsl) / (6*sigma)
-  Ppu = float(usl - m) / (3*sigma)
-  Ppl = float(m - lsl) / (3*sigma)
-  Ppk = np.min([Ppu, Ppl])
-  #print('Pp:{:.2f} , Ppk: {:.2f}'.format(Pp,Ppk))
+    
+  if sigma ==0 :
+      Mean=df_temp['Value'].mean()
+      UCL=LCL=Mean
+      Cp=float("NaN")
+      Cpk=float("NaN")
+      Pp=float("NaN")
+      Ppk=float("NaN")
+  if sigma !=0:
+      #UCL, LCL, Mean
+      k=3 
+      UCL=df_temp['Value'].mean() + sigma*k
+      LCL=df_temp['Value'].mean() - sigma*k
+      Mean=df_temp['Value'].mean()
+      #Ppk
+      print("sigma",sigma)
+      Pp = float(usl - lsl) / (6*sigma)
+      Ppu = float(usl - m) / (3*sigma)
+      Ppl = float(m - lsl) / (3*sigma)
+      Ppk = np.min([Ppu, Ppl])
+      #print('Pp:{:.2f} , Ppk: {:.2f}'.format(Pp,Ppk))
+      #Cpk
+      temp=df_temp.groupby('Hour').agg({'Value':['min','max']})
+      temp['Range']=temp['Value','max']-temp['Value','min']
+      Range=temp['Range'].mean()
 
-  #UCL, LCL, Mean
-  k=3
-  df['UCL']=df_temp['Hour'].mean() + sigma*k
-  df['LCL']=df_temp['Hour'].mean() - sigma*k
-  df['Mean']=df_temp['Hour'].mean()
-  #Cpk
-  
-  temp=df_temp.groupby('Hour').agg({'Value':['min','max']})
-  temp['Range']=temp['Value','max']-temp['Value','min']
-  Range=temp['Range'].mean()
+      if n <= 20:
+        sigma_within = Range/constants[n]
+      else:
+        sigma_within = Range/constants[20]
 
-  if n <= 20:
-    sigma_within = Range/constants[n]
-  else:
-    sigma_within = Range/constants[20]
-
-  Cp = float(usl - lsl) / (6*sigma_within)
-  Cpu = float(usl - m) / (3*sigma_within)
-  Cpl = float(m - lsl) / (3*sigma_within)
-  Cpk = np.min([Cpu, Cpl])
-  #print('Cp:{:.2f} , Cpk:{:.2f}'.format(Cp,Cpk))
-  if np.isnan(usl):
-    Cpk=Cpl
-    Ppk=Ppl
-  elif np.isnan(lsl):
-    Cpk=Cpu
-    Ppk=Ppu
-  else:
-    Cpk = np.min([Cpu, Cpl])
-    Ppk = np.min([Ppu, Ppl])
+      Cp = float(usl - lsl) / (6*sigma_within)
+      Cpu = float(usl - m) / (3*sigma_within)
+      Cpl = float(m - lsl) / (3*sigma_within)
+      Cpk = np.min([Cpu, Cpl])
+      #print('Cp:{:.2f} , Cpk:{:.2f}'.format(Cp,Cpk))
+      if np.isnan(usl):
+        Cpk=Cpl
+        Ppk=Ppl
+      elif np.isnan(lsl):
+        Cpk=Cpu
+        Ppk=Ppu
+      else:
+        Cpk = np.min([Cpu, Cpl])
+        Ppk = np.min([Ppu, Ppl])
   #print(Ppk,Cpk)
   Cp=round(Cp,2)
   Cpk=round(Cpk,2)
   Pp=round(Pp,2)
   Ppk=round(Ppk,2)
-  return df,Cp,Cpk,Pp,Ppk
+  UCL=round(UCL,2)
+  LCL=round(LCL,2)
+  Mean=round(Mean,2)
+  return Cp,Cpk,Pp,Ppk,UCL,LCL,Mean
 
 #-----------create_process_indicator-------------------
 @st.cache(suppress_st_warning=True,allow_output_mutation=True)
@@ -315,7 +318,10 @@ def create_process_indicator(base_week):
         df=df_dict[dim_name]
         #print(dim_name)
         try: # debug purpose
-            df,Cp,Cpk,Pp,Ppk=process_performance(df) 
+          Cp,Cpk,Pp,Ppk,UCL,LCL,Mean=process_performance(df) 
+          df["UCL"]=UCL
+          df["LCL"]=LCL
+          df["Mean"]=Mean
         except:
             continue # sigma = 0 phai continue de tranh dung chuong trinh
             #print(process_name)
