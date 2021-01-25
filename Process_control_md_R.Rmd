@@ -1,0 +1,193 @@
+---
+title: "Untitled"
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(readxl)
+library(tictoc)
+```
+
+# 1. Set up control limit:
+## Get excel file
+```{r}
+#trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up 3000/Set up control limit'
+trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up VPU/Set up limit'
+#trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000'
+#trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
+#trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 2600'
+#trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan E series 1'
+```
+
+
+```{r}
+file.list <- list.files(path=trial_path,pattern='*.xlsm',full.names=T)
+file.list
+```
+```{r}
+master_sheet_data_func <-function(file.list){
+  data <-read_excel(path = file.list, sheet = 1)
+}
+master_sheet_data=master_sheet_data_func(tail(file.list,n=1))
+#master_sheet_data
+```
+
+```{r}
+tab_names <- excel_sheets(path = file.list[1])
+tab_names
+```
+
+
+```{r}
+tic()
+week_data <- lapply(tab_names, function(x) read_excel(path = file.list[1], sheet = x))
+toc() # time to read 1 file : 10.14 s (3000); 4.3 s (VPU)
+```
+
+# Investigate sheet 3 : 83712 process
+```{r}
+sheet_4 <-week_data[[4]]
+str(sheet_4)
+```
+Find begin and end column (that contain features)
+
+```{r}
+index_row_contain_feature_column_indicate <- 22
+row_contain_value_cols<- sheet_4[index_row_contain_feature_column_indicate,]
+row_contain_value_cols
+```
+Check if column contain not NA:
+```{r}
+#sapply(values_col, function(x) any(!is.na(x)))
+#Remove columns from dataframe where ALL values are NA
+row_contain_value_cols<-row_contain_value_cols[,colSums(is.na(row_contain_value_cols))<nrow(row_contain_value_cols)]
+row_contain_value_cols
+```
+
+```{r}
+begin_col <- names(row_contain_value_cols[,1])
+end_col <- names(row_contain_value_cols[,ncol(row_contain_value_cols)])
+begin_col
+end_col
+```
+
+```{r}
+index_row_contain_feature_column <- 23
+dim_name <-sheet_4[[end_col]][index_row_contain_feature_column]
+dim_name
+```
+
+
+```{r}
+column_hour <- 10
+row_start_value = 26
+```
+
+```{r}
+hour_data <- sheet_4[row_start_value:nrow(sheet_4),column_hour]
+hour_data
+```
+
+
+```{r}
+dim_data <- data.frame()
+dim_data <- bind_rows(dim_data,hour_data)
+colnames(dim_data) <- c("hour")
+dim_data
+```
+
+```{r}
+value_data <- sheet_4[row_start_value:nrow(sheet_4),end_col]
+value_data
+```
+
+```{r}
+dim_data <- bind_cols(dim_data,value_data)
+colnames(dim_data) <- c("hour",dim_name)
+dim_data
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+```{r}
+```
+
+# Combine all sheet in each weeks:
+```{r}
+
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
