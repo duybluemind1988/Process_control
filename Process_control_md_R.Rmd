@@ -12,7 +12,8 @@ library(tictoc)
 ## Get excel file
 ```{r}
 #trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up 3000/Set up control limit'
-trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up VPU/Set up limit'
+#trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up VPU/Set up limit'
+trial_path='/mnt/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan set up VPU/Set up limit'
 #trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000'
 #trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
 #trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 2600'
@@ -122,12 +123,17 @@ LSL
 ```
 # Combine all sheet in each weeks:
 ```{r}
+library(tidyverse)
+library(readxl)
+library(tictoc)
 library(openxlsx)
 ```
 
 
 ```{r}
-trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up VPU/Set up limit'
+#trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up VPU/Set up limit'
+trial_path='/mnt/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan set up VPU/Set up limit'
+# get all file in path
 file.list <- list.files(path=trial_path,pattern='*.xlsm',full.names=T)
 tab_names <- excel_sheets(path = file.list[1])
 # Read all sheet in each excel file
@@ -136,6 +142,93 @@ sheet <-week_data[[3]]
 sheet
 ```
 
+```{r}
+# Read all sheet in 1 excel file
+path <- file.list[1]
+week_data <- path %>% 
+              excel_sheets() %>% 
+              set_names() %>% 
+              map(read_excel,path=path)
+week_data
+```
+
+```{r}
+tic()
+# read one excel file with all sheet
+data_one_weeks <- file.list[1] %>%
+                  excel_sheets() %>%  # extract excel sheet in path file
+                  set_names() %>%  # set names
+                  map(read_excel, path = path) # read file with all sheet
+toc() # 1.1 s
+```
+
+
+```{r}
+data_one_weeks <- file.list[1] %>%
+                  excel_sheets() %>%  # extract excel sheet in path file
+                  set_names() %>%  # set names
+                  map(read_excel, path = path) %>%  # read file with all sheet
+```
+
+```{r}
+read_multiple_excel <- function(path) {
+  path %>%
+    excel_sheets() %>%  # extract excel sheet in path file
+    set_names() %>%  # set names
+  map(read_excel, path = path) # read file with all sheet
+}
+```
+
+```{r}
+# read all excel file with multi sheet
+tic()
+data_all_weeks <- file.list %>% 
+                      map(read_multiple_excel)
+toc() # 5 s read 4 VPU excel file (SUPER FAST)
+```
+
+```{r}
+get_information <- function(sheet){
+  # Find row contain all features column and na column value (indicator index)
+  index_row_contain_feature_column_indicate <- 22
+  row_contain_value_cols<- sheet[index_row_contain_feature_column_indicate,]
+  # Filter only column contain feature (not na)
+  row_contain_value_cols_filter<-row_contain_value_cols[,colSums(is.na(row_contain_value_cols))<nrow(row_contain_value_cols)]
+  # Find begin and end column that contain features
+  begin_col <- names(row_contain_value_cols_filter[,1])
+  end_col <- names(row_contain_value_cols_filter[,ncol(row_contain_value_cols_filter)])
+  # Tao function get tat ca thong tin nay tu begin col --> end col
+  # row contain all features column (real, not indicator index)
+  index_row_contain_feature_column <- 23
+  dim_name <-sheet[[end_col]][index_row_contain_feature_column] # Find dim_name
+  column_hour <- 10
+  row_start_value = 26
+  # read hour value
+  hour_data <- sheet[row_start_value:nrow(sheet),column_hour] 
+  dim_data <- data.frame()
+  # add hour value to dim data
+  dim_data <- bind_rows(dim_data,hour_data) 
+  colnames(dim_data) <- c("hour")
+  # Convert excel number to date_time
+  dim_data$hour <- convertToDateTime(dim_data$hour) 
+  # read dim value
+  value_data <- sheet[row_start_value:nrow(sheet),end_col] 
+  # add dim value to dim data
+  dim_data <- bind_cols(dim_data,value_data) 
+  colnames(dim_data) <- c("hour",dim_name)
+  row_contain_usl = 24
+  row_contain_lsl = 25
+  # read USL value
+  USL <- sheet[[end_col]][row_contain_usl] # column, row . column change, row not change
+  dim_data <- bind_cols(dim_data,USL)
+  colnames(dim_data) <- c("hour",dim_name,"USL")
+  # read LSL value
+  LSL <- sheet[[end_col]][row_contain_lsl]
+  dim_data <- bind_cols(dim_data,LSL)
+  colnames(dim_data) <- c("hour",dim_name,"USL","LSL")
+  dim_data
+}
+```
 
 ```{r}
 # Find row contain all features column and na column value (indicator index)
@@ -175,15 +268,12 @@ colnames(dim_data) <- c("hour",dim_name,"USL")
 LSL <- sheet[[end_col]][row_contain_lsl]
 dim_data <- bind_cols(dim_data,LSL)
 colnames(dim_data) <- c("hour",dim_name,"USL","LSL")
-```
-
-
-```{r}
 dim_data
 ```
 
 
 ```{r}
+
 ```
 
 

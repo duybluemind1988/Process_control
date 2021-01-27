@@ -1,0 +1,107 @@
+---
+title: "Untitled"
+output: html_document
+---
+```{r}
+library(dplyr)
+library(reticulate)
+use_python("/home/dnn/anaconda3/bin/python")
+```
+
+```{python}
+#conda activate r-reticulate
+import pandas as pd
+import numpy as np
+Plist= [11,22,33,44,55,66]
+print(Plist)
+def Psq_fun (x):
+  value= x*x 
+  return(value)
+  
+print(Psq_fun(9))
+
+```
+
+
+```{r}
+conda_list()
+```
+```{python}
+# Make a sequence in a data frame using dict format
+df = pd.DataFrame(data = {"sequence":np.arange(1,20,.01)})
+
+# Use assign (mutate) equivalent to calculate the np.sin() of the series
+df = df.assign(value=np.sin(df["sequence"]))
+
+df
+```
+
+
+```{python}
+import matplotlib.pyplot as plt
+
+df.plot(x="sequence", y = "value", title = "Matplotlib")
+plt.show()
+```
+
+```{python}
+from sklearn.ensemble import RandomForestClassifier
+
+clf = RandomForestClassifier(random_state=0)
+
+X = [[ 1,  2,  3],  # 2 samples, 3 features
+     [11, 12, 13]]
+
+y = [0, 1]  # classes of each sample
+
+clf.fit(X, y)
+clf.predict(X)
+```
+
+
+```{python}
+from sklearn.cluster import AffinityPropagation
+from sklearn.datasets import make_blobs
+
+# #############################################################################
+# Generate sample data
+centers = [[1, 1], [-1, -1], [1, -1]]
+X, labels_true = make_blobs(n_samples=300, centers=centers, cluster_std=0.5,random_state=0)
+
+# Compute Affinity Propagation
+af = AffinityPropagation(preference=-50).fit(X)
+cluster_centers_indices = af.cluster_centers_indices_
+labels = af.labels_
+
+n_clusters_ = len(cluster_centers_indices)
+```
+
+
+```{python}
+# #############################################################################
+# Plot result
+import matplotlib.pyplot as plt
+from itertools import cycle
+
+plt.close('all')
+plt.figure(1)
+plt.clf()
+
+colors = cycle('bgrcmykbgrcmykbgrcmykbgrcmyk')
+for k, col in zip(range(n_clusters_), colors):
+    class_members = labels == k
+    cluster_center = X[cluster_centers_indices[k]]
+    plt.plot(X[class_members, 0], X[class_members, 1], col + '.')
+    plt.plot(cluster_center[0], cluster_center[1], 'o', markerfacecolor=col,
+             markeredgecolor='k', markersize=14)
+    for x in X[class_members]:
+        plt.plot([cluster_center[0], x[0]], [cluster_center[1], x[1]], col)
+
+plt.title('Estimated number of clusters: %d' % n_clusters_)
+plt.show()
+```
+
+
+```{r}
+```
+

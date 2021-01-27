@@ -17,7 +17,8 @@ import glob
 import xlrd
 
 #-----------------Design_layout main side-----------------#
-trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up 3000/Set up control limit'
+#trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up 3000/Set up control limit'
+trial_path='/mnt/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan set up VPU/Set up limit'
 #trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000'
 #trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
 #trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 2600'
