@@ -45,15 +45,16 @@ toc() # time to read 1 file : 10.14 s (3000); 4.3 s (VPU)
 ```
 
 # Investigate sheet 3 : 83712 process
+
 ```{r}
-sheet_4 <-week_data[[4]]
-str(sheet_4)
+sheet <-week_data[[3]]
+#str(sheet)
 ```
 Find begin and end column (that contain features)
 
 ```{r}
 index_row_contain_feature_column_indicate <- 22
-row_contain_value_cols<- sheet_4[index_row_contain_feature_column_indicate,]
+row_contain_value_cols<- sheet[index_row_contain_feature_column_indicate,]
 row_contain_value_cols
 ```
 Check if column contain not NA:
@@ -73,7 +74,7 @@ end_col
 
 ```{r}
 index_row_contain_feature_column <- 23
-dim_name <-sheet_4[[end_col]][index_row_contain_feature_column]
+dim_name <-sheet[[end_col]][index_row_contain_feature_column]
 dim_name
 ```
 
@@ -84,7 +85,7 @@ row_start_value = 26
 ```
 
 ```{r}
-hour_data <- sheet_4[row_start_value:nrow(sheet_4),column_hour]
+hour_data <- sheet[row_start_value:nrow(sheet),column_hour]
 hour_data
 ```
 
@@ -97,7 +98,7 @@ dim_data
 ```
 
 ```{r}
-value_data <- sheet_4[row_start_value:nrow(sheet_4),end_col]
+value_data <- sheet[row_start_value:nrow(sheet),end_col]
 value_data
 ```
 
@@ -106,45 +107,79 @@ dim_data <- bind_cols(dim_data,value_data)
 colnames(dim_data) <- c("hour",dim_name)
 dim_data
 ```
-
-
 ```{r}
+library(openxlsx)
+dim_data$hour <- convertToDateTime(dim_data$hour)
+dim_data
 ```
-
-
 ```{r}
+row_contain_usl = 24
+row_contain_lsl = 25
+USL <- sheet[[end_col]][row_contain_usl] # column, row . column change, row not change
+LSL <- sheet[[end_col]][row_contain_lsl]
+USL
+LSL
 ```
-
-```{r}
-```
-
 # Combine all sheet in each weeks:
 ```{r}
-
+library(openxlsx)
 ```
 
 
 ```{r}
+trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up VPU/Set up limit'
+file.list <- list.files(path=trial_path,pattern='*.xlsm',full.names=T)
+tab_names <- excel_sheets(path = file.list[1])
+# Read all sheet in each excel file
+week_data <- map(tab_names, function(x) read_excel(path = file.list[1], sheet = x))
+sheet <-week_data[[3]]
+sheet
 ```
 
 
 ```{r}
+# Find row contain all features column and na column value (indicator index)
+index_row_contain_feature_column_indicate <- 22
+row_contain_value_cols<- sheet[index_row_contain_feature_column_indicate,]
+# Filter only column contain feature (not na)
+row_contain_value_cols_filter<-row_contain_value_cols[,colSums(is.na(row_contain_value_cols))<nrow(row_contain_value_cols)]
+# Find begin and end column that contain features
+begin_col <- names(row_contain_value_cols_filter[,1])
+end_col <- names(row_contain_value_cols_filter[,ncol(row_contain_value_cols_filter)])
+# Tao function get tat ca thong tin nay tu begin col --> end col
+# row contain all features column (real, not indicator index)
+index_row_contain_feature_column <- 23
+dim_name <-sheet[[end_col]][index_row_contain_feature_column] # Find dim_name
+column_hour <- 10
+row_start_value = 26
+# read hour value
+hour_data <- sheet[row_start_value:nrow(sheet),column_hour] 
+dim_data <- data.frame()
+# add hour value to dim data
+dim_data <- bind_rows(dim_data,hour_data) 
+colnames(dim_data) <- c("hour")
+# Convert excel number to date_time
+dim_data$hour <- convertToDateTime(dim_data$hour) 
+# read dim value
+value_data <- sheet[row_start_value:nrow(sheet),end_col] 
+# add dim value to dim data
+dim_data <- bind_cols(dim_data,value_data) 
+colnames(dim_data) <- c("hour",dim_name)
+row_contain_usl = 24
+row_contain_lsl = 25
+# read USL value
+USL <- sheet[[end_col]][row_contain_usl] # column, row . column change, row not change
+dim_data <- bind_cols(dim_data,USL)
+colnames(dim_data) <- c("hour",dim_name,"USL")
+# read LSL value
+LSL <- sheet[[end_col]][row_contain_lsl]
+dim_data <- bind_cols(dim_data,LSL)
+colnames(dim_data) <- c("hour",dim_name,"USL","LSL")
 ```
 
 
 ```{r}
-```
-
-
-```{r}
-```
-
-
-```{r}
-```
-
-
-```{r}
+dim_data
 ```
 
 
