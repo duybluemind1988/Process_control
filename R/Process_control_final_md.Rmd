@@ -1,0 +1,128 @@
+---
+title: "Untitled"
+output: html_document
+---
+```{r}
+library(tidyverse)
+library(readxl)
+library(tictoc)
+library(openxlsx)
+```
+
+
+```{r}
+trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up VPU/Set up limit'
+#trial_path='/mnt/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan set up VPU/Set up limit'
+# get all file in path
+all_weeks_files <- list.files(path=trial_path,pattern='*.xlsm',full.names=T)
+all_weeks_files
+```
+
+
+```{r}
+all_process_week <- list()
+for (week in all_weeks_files){
+  #print(file)
+  sheet_names <- excel_sheets(path = week) # get all sheet name in excel file
+  sheet_names <- sheet_names[seq(2, length(sheet_names))] # remove master sheet
+  sheet_list <- list()
+  for (sheet_name in sheet_names){ # each sheet in each week_data:
+    sheet <- read_excel(path = week,sheet=sheet_name)
+    # Find row contain all features column and na column value (indicator index)
+    index_row_contain_feature_column_indicate <- 22
+    row_contain_value_cols<- sheet[index_row_contain_feature_column_indicate,]
+    # Filter only column contain feature (not na)
+    row_contain_value_cols_filter<-row_contain_value_cols[,colSums(is.na(row_contain_value_cols))<nrow(row_contain_value_cols)]
+    # Find begin and end column that contain features
+    #begin_col <- names(row_contain_value_cols_filter[,1])
+    #end_col <- names(row_contain_value_cols_filter[,ncol(row_contain_value_cols_filter)])
+    dim_list <- list()
+    for (column_name in names(row_contain_value_cols_filter)){
+      index_row_contain_feature_column <- 23
+      dim_name <-sheet[[column_name]][index_row_contain_feature_column] # Find dim_name
+      column_hour <- 10
+      row_start_value = 26
+      # read hour value
+      hour_data <- sheet[row_start_value:nrow(sheet),column_hour] 
+      dim_data <- data.frame()
+      # add hour value to dim data
+      dim_data <- bind_rows(dim_data,hour_data) 
+      colnames(dim_data) <- c("hour")
+      # Convert excel number to date_time
+      dim_data$hour <- convertToDateTime(dim_data$hour) 
+      # read dim value
+      value_data <- sheet[row_start_value:nrow(sheet),column_name] 
+      # add dim value to dim data
+      dim_data <- bind_cols(dim_data,value_data) 
+      colnames(dim_data) <- c("hour",dim_name)
+      row_contain_usl = 24
+      row_contain_lsl = 25
+      # read USL value
+      USL <- sheet[[column_name]][row_contain_usl] # column, row . column change, row not change
+      dim_data <- bind_cols(dim_data,USL)
+      colnames(dim_data) <- c("hour",dim_name,"USL")
+      # read LSL value
+      LSL <- sheet[[column_name]][row_contain_lsl]
+      dim_data <- bind_cols(dim_data,LSL)
+      colnames(dim_data) <- c("hour",dim_name,"USL","LSL")
+      dim_data
+      #dim_list <- append(dim_list,dim_data)
+      dim_list[[dim_name]] <- dim_data
+    }
+    sheet_list[[sheet_name]] <- dim_list
+  }
+  all_process_week[[week]] <- sheet_list
+  
+}
+```
+
+
+```{r}
+length(all_process_week)
+length(all_process_week[1])
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+

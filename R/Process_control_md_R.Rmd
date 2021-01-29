@@ -11,9 +11,10 @@ library(tictoc)
 # 1. Set up control limit:
 ## Get excel file
 ```{r}
+
+trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up VPU/Set up limit'
+#trial_path='/mnt/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan set up VPU/Set up limit'
 #trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up 3000/Set up control limit'
-#trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up VPU/Set up limit'
-trial_path='/mnt/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan set up VPU/Set up limit'
 #trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000'
 #trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
 #trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 2600'
@@ -48,6 +49,7 @@ toc() # time to read 1 file : 10.14 s (3000); 4.3 s (VPU)
 # Investigate sheet 3 : 83712 process
 
 ```{r}
+# read one sheet only
 sheet <-week_data[[3]]
 #str(sheet)
 ```
@@ -64,6 +66,16 @@ Check if column contain not NA:
 #Remove columns from dataframe where ALL values are NA
 row_contain_value_cols<-row_contain_value_cols[,colSums(is.na(row_contain_value_cols))<nrow(row_contain_value_cols)]
 row_contain_value_cols
+```
+```{r}
+class(names(row_contain_value_cols))
+class(row_contain_value_cols)
+row_contain_value_cols
+```
+```{r}
+for (name in names(row_contain_value_cols) ){
+  print(name)
+}
 ```
 
 ```{r}
