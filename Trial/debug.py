@@ -5,6 +5,7 @@ Created on Thu Dec 10 17:40:19 2020
 
 @author: ad
 """
+import tensorflow
 
 import matplotlib.pyplot as plt
 import numpy as np
