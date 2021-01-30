@@ -4,6 +4,7 @@ output: html_document
 ---
 ```{r}
 library(tidyverse)
+library(lubridate)
 library(readxl)
 library(tictoc)
 library(openxlsx)
@@ -86,7 +87,8 @@ names(all_process_week[["WK6 - 2020"]][["83620-Diameter"]])
 
 
 ```{r}
-"83620-Diameter" %in% names(all_process_week[["WK6 - 2020"]])
+class(all_process_week[["WK6 - 2020"]][["83620-Diameter"]]$`Đường kính ngang\r\nHorizontal Diameter`)
+all_process_week[["WK6 - 2020"]][["83620-Diameter"]]$`Đường kính ngang\r\nHorizontal Diameter`
 ```
 
 
@@ -123,9 +125,12 @@ for (week in all_weeks_files){
       dim_data <- bind_rows(dim_data,hour_data) 
       colnames(dim_data) <- c("hour")
       # Convert excel number to date_time
-      dim_data$hour <- convertToDateTime(dim_data$hour) 
+      dim_data$hour <- convertToDateTime(dim_data$hour) # day, hour, min, second
+      # Convert ymd_hms to ymd_h
+      dim_data$hour <- ymd_h(strftime(dim_data$hour, format="%Y-%m-%d:%H"))
       # read dim value
-      value_data <- sheet[row_start_value:nrow(sheet),column_name] 
+      value_data <- sheet[row_start_value:nrow(sheet),column_name]
+      value_data <- lapply(value_data,as.numeric)
       # add dim value to dim data
       dim_data <- bind_cols(dim_data,value_data) 
       colnames(dim_data) <- c("hour",dim_name)
@@ -133,10 +138,12 @@ for (week in all_weeks_files){
       row_contain_lsl = 25
       # read USL value
       USL <- sheet[[column_name]][row_contain_usl] # column, row . column change, row not change
+      USL <- lapply(USL,as.numeric)
       dim_data <- bind_cols(dim_data,USL)
       colnames(dim_data) <- c("hour",dim_name,"USL")
       # read LSL value
       LSL <- sheet[[column_name]][row_contain_lsl]
+      LSL <- lapply(LSL,as.numeric)
       dim_data <- bind_cols(dim_data,LSL)
       colnames(dim_data) <- c("hour",dim_name,"USL","LSL")
       #print(dim_data)
@@ -147,7 +154,7 @@ for (week in all_weeks_files){
       else {
         if (sheet_name %in% names(sheet_list)){
           if (dim_name %in% names(sheet_list[[sheet_name]])){
-            sheet_list[[sheet_name]][[dim_name]] <- append(sheet_list[[sheet_name]][[dim_name]],dim_data)
+            sheet_list[[sheet_name]][[dim_name]] <- rbind(sheet_list[[sheet_name]][[dim_name]],dim_data)
           }
         }
       }
@@ -155,35 +162,35 @@ for (week in all_weeks_files){
   }
   i <- i+1
 }
-toc() # 7.09 s
+toc() # 6.512 s (not convert to numeric) compare to 83 s python 
+# 6.81 s convert to numeric, 6.65 s conver numeric and date time
 ```
-
 
 ```{r}
 names(sheet_list)
 names(sheet_list[["83735-Burr and Dim"]])
 ```
 
-
 ```{r}
-head(sheet_list[["83735-Burr and Dim"]][["Burr (bên trái/ Left)"]]$hour)
-tail(sheet_list[["83735-Burr and Dim"]][["Burr (bên trái/ Left)"]]$hour)
+trial <- sheet_list[["83735-Burr and Dim"]][["Burr (bên trái/ Left)"]]
+trial
+```
+```{r}
+sum(is.na(trial))
 ```
 
-
 ```{r}
+#install.packages("qcc")
+library(qcc)
 ```
 
-
 ```{r}
+chart <- qcc.groups(trial[["Burr (bên trái/ Left)"]], trial$hour)
+chart
 ```
 
-
 ```{r}
-```
-
-
-```{r}
+xbar_chart <- qcc(chart, type='xbar') 
 ```
 
 
