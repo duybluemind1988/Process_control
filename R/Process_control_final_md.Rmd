@@ -126,7 +126,7 @@ for (week in all_weeks_files){
       colnames(dim_data) <- c("hour")
       # Convert excel number to date_time
       dim_data$hour <- convertToDateTime(dim_data$hour) # day, hour, min, second
-      # Convert ymd_hms to ymd_h
+      # Convert ymd_hms to ymd_h (no need ?)
       dim_data$hour <- ymd_h(strftime(dim_data$hour, format="%Y-%m-%d:%H"))
       # read dim value
       value_data <- sheet[row_start_value:nrow(sheet),column_name]
@@ -147,6 +147,7 @@ for (week in all_weeks_files){
       dim_data <- bind_cols(dim_data,LSL)
       colnames(dim_data) <- c("hour",dim_name,"USL","LSL")
       #print(dim_data)
+      # Combine all dim in all weeks
       if (i==0){
         sheet_list[[sheet_name]][[dim_name]] <- dim_data
         #print(sheet_list[[sheet_name]][[dim_name]])
