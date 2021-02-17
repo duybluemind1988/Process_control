@@ -18,7 +18,7 @@ import xlrd
 
 #-----------------Design_layout main side-----------------#
 #trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up 3000/Set up control limit'
-trial_path='/mnt/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan set up VPU/Set up limit'
+trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up VPU/Set up limit'
 #trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000'
 #trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
 #trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 2600'
@@ -228,9 +228,19 @@ final_data=concat_baseweek(master_sheet_data,all_process_week)
 #print(base_week['39682'])
 st.text('number of process in line: '+str(len(final_data)))
 
+def remove_outlier(df):
+  data=df.Value
+  Q1 = data.quantile(0.25)
+  Q3 = data.quantile(0.75)
+  IQR = Q3 - Q1
+  k=3 #1.5
+  min_value=Q1 - k * IQR
+  max_value=Q3 + k * IQR
+  df = df[~((data< min_value) |(data > max_value))]
+  return df
 #-----------Calculate process indicator base on 25 lates subgroup sample-------------------
 @st.cache(allow_output_mutation=True) # Mo them vao sau nay
-def process_performance(df):
+def process_performance(df,check_box_remove_outlier=True):
   constants={
     2:1.128,3:1.693,4:2.059,5:2.326,6:2.534,7:2.704,8:2.847, 9: 2.970,10: 3.078,
     11: 3.173,12: 3.258,13: 3.336,14: 3.407,15: 3.472,16: 3.532,17:3.588,18:3.640,
@@ -238,6 +248,9 @@ def process_performance(df):
     }  
   #print('dim: ',name)
   # Calculate sigma
+  if check_box_remove_outlier ==True:
+    df = remove_outlier(df)
+  df = remove_outlier(df)  
   sigma=np.std(df.Value)
   n=df.Hour.value_counts()[0] # check sub group num
   # Method 1: Collect only 25 group sample for calculation # Sẽ có 33 dim name / 14 process
@@ -262,9 +275,10 @@ def process_performance(df):
   if sigma !=0:
       #UCL, LCL, Mean
       k=3 
-      UCL=df_temp['Value'].mean() + sigma*k
-      LCL=df_temp['Value'].mean() - sigma*k
       Mean=df_temp['Value'].mean()
+      UCL=Mean + sigma*k
+      LCL=Mean - sigma*k
+      
       #Ppk
       #print("sigma",sigma)
       Pp = float(usl - lsl) / (6*sigma)
@@ -301,14 +315,22 @@ def process_performance(df):
   Cpk=round(Cpk,2)
   Pp=round(Pp,2)
   Ppk=round(Ppk,2)
-  UCL=round(UCL,2)
-  LCL=round(LCL,2)
-  Mean=round(Mean,2)
+  UCL=round(UCL,4)
+  LCL=round(LCL,4)
+  Mean=round(Mean,4)
   return Cp,Cpk,Pp,Ppk,UCL,LCL,Mean
+
+#------------Remove ouliter for control limit calculation------------------------
+
+#check_box_remove_outlier=st.checkbox('Remove outlier for control limit calculation')
+check_box_remove_outlier=True
+  #check_box_remove_outlier=True
+#else:
+  #check_box_remove_outlier=False
 
 #-----------create_process_indicator-------------------
 @st.cache(suppress_st_warning=True,allow_output_mutation=True)
-def create_process_indicator(base_week): 
+def create_process_indicator(base_week,check_box_remove_outlier=True): 
 
     process_indicator_dict={}
     process_indicator_df=pd.DataFrame(columns=['Process_name','Dim_name','Cp','Pp','Cpk','Ppk','UCL','LCL','Mean'])
@@ -322,7 +344,7 @@ def create_process_indicator(base_week):
         df=df_dict[dim_name]
         #print(dim_name)
         try: # debug purpose
-          Cp,Cpk,Pp,Ppk,UCL,LCL,Mean=process_performance(df) 
+          Cp,Cpk,Pp,Ppk,UCL,LCL,Mean=process_performance(df,check_box_remove_outlier) 
           df["UCL"]=UCL
           df["LCL"]=LCL
           df["Mean"]=Mean
@@ -359,11 +381,11 @@ def create_process_indicator(base_week):
       #name_list.append(dim_name)
     return  base_week,process_indicator_df,name_list_dict
 
-final_data,process_indicator_df,name_list_dict= create_process_indicator(final_data)
+final_data,process_indicator_df,name_list_dict= create_process_indicator(final_data,check_box_remove_outlier)
 
 #------------------------Show process indicator-----------------------------#
 st.subheader("Process indicator: Cp, Pb, Cpk, Ppk")
-limit=st.number_input("Please input lower limit of Cpk and Ppk",value=1.33,key="input1")
+limit=st.number_input("Please input lower limit of Cpk and Ppk",value=1.0,key="input1")
 limit=float(limit)
 #limit = 1.33  # sigma: 4, Yield: 99.99%   
 #@st.cache(allow_output_mutation=True) # Moi them vao
@@ -401,10 +423,11 @@ end_date= st.text_input("Please input end Date (Ex:  2019, 2019/08, 2018/08/20)"
 
 #------------------------Control Chart group by hour--------------------------------------#
 st.header("Control chart group by hour")
+control_chart_remove_outlier=st.checkbox('Remove outlier for control chart')
 
 #@st.cache(suppress_st_warning=True,allow_output_mutation=True)
 @st.cache(suppress_st_warning=True,allow_output_mutation=True)
-def line_chart_by_hour(final_data,process_select,name_list_dict):
+def line_chart_by_hour(final_data,process_select,name_list_dict,control_chart_remove_outlier):
     fig_all=[]
     for process_name in process_select:
       df_dict=final_data[process_name] # process name
@@ -419,6 +442,8 @@ def line_chart_by_hour(final_data,process_select,name_list_dict):
       )
       for name in list(df_dict.keys()): #also group
         df=df_dict[name].copy()
+        if control_chart_remove_outlier == True:
+          df=remove_outlier(df)
         df=df.sort_values(by=['Hour'])
         for a in df.columns[1:]:
           df[a] = df[a].round(decimals=3)
@@ -453,9 +478,8 @@ def line_chart_by_hour(final_data,process_select,name_list_dict):
       fig_all.append(fig)  
     return fig_all # fig nay chi la 1 process cuoi cung thoi, lam sao return toan bo fig ?
 
-
 if st.checkbox('Please tick to this box if you need to show control chart'):
-    fig_line_chart=line_chart_by_hour(final_data,process_select,name_list_dict)    
+    fig_line_chart=line_chart_by_hour(final_data,process_select,name_list_dict,control_chart_remove_outlier)    
     for fig in fig_line_chart:
         st.plotly_chart(fig)
         
@@ -463,7 +487,7 @@ if st.checkbox('Please tick to this box if you need to show control chart'):
 
 st.header("Box chart by hour")
 @st.cache(suppress_st_warning=True,allow_output_mutation=True)
-def box_chart(final_data,process_select,name_list_dict,type_chart):
+def box_chart(final_data,process_select,name_list_dict,type_chart,control_chart_remove_outlier):
     fig_all=[]
     for process_name in process_select:
       df_dict=final_data[process_name] # process name
@@ -478,6 +502,8 @@ def box_chart(final_data,process_select,name_list_dict,type_chart):
       )
       for name in list(df_dict.keys()): #also group
         df=df_dict[name].copy()
+        if control_chart_remove_outlier == True:
+          df=remove_outlier(df)
         df=df.sort_values(by=['Hour'])
         if type_chart== 'Hour':
             for a in df.columns[1:]:
@@ -536,7 +562,7 @@ def box_chart(final_data,process_select,name_list_dict,type_chart):
     return fig_all # fig nay chi la 1 process cuoi cung thoi, lam sao return toan bo fig ?
 
 if st.checkbox('Show box chart by hour'):
-    fig_box_chart_hour=box_chart(final_data,process_select,name_list_dict,'Hour')    
+    fig_box_chart_hour=box_chart(final_data,process_select,name_list_dict,'Hour',control_chart_remove_outlier)    
     for fig in fig_box_chart_hour:
         st.plotly_chart(fig)
     
@@ -544,7 +570,7 @@ if st.checkbox('Show box chart by hour'):
 st.header("Box chart by day")
 
 if st.checkbox('Show box chart by day'):
-    fig_box_chart_day=box_chart(final_data,process_select,name_list_dict,'Day')    
+    fig_box_chart_day=box_chart(final_data,process_select,name_list_dict,'Day',control_chart_remove_outlier)    
     for fig in fig_box_chart_day:
         st.plotly_chart(fig)
     
@@ -552,7 +578,7 @@ if st.checkbox('Show box chart by day'):
 st.header("Box chart by week")
 
 if st.checkbox('Show box chart by week'):
-    fig_box_chart_week=box_chart(final_data,process_select,name_list_dict,'Week')    
+    fig_box_chart_week=box_chart(final_data,process_select,name_list_dict,'Week',control_chart_remove_outlier)    
     for fig in fig_box_chart_week:
         st.plotly_chart(fig)
 
@@ -580,11 +606,12 @@ if st.checkbox('Save dataframe'):
 st.header("2. Applied control limit to new data")
 
 #-----------------Design_layout main side-----------------#
-trial_path2='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up 3000/Applied to new data'
-#trial_path='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000'
-#trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
-#trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 2600'
-#trial_path='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan E series 1'
+#trial_path2='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up 3000/Applied to new data'
+trial_path2='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan set up VPU/New data'
+#trial_path2='//Vn01w2k16v18/data/Copyroom/Test_software/Data/Control plan/Control plan 3000'
+#trial_path2='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 3000'
+#trial_path2='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan 2600'
+#trial_path2='/media/ad/01D6B57CFBE4DB20/1.Linux/Data/Process_control/Control plan E series 1'
 
 input_folder2= st.text_input("1. Please input folder name for data analysis (MUST)",trial_path2,key="applied_data")
 input_folder2=input_folder2 +'/'
@@ -621,7 +648,7 @@ final_data_2=concat_baseweek(master_sheet_data_2,all_process_week2)
 #print(base_week['39682'])
 st.text('number of process in line: '+str(len(final_data_2)))
 
-#-----------Calculate process indicator base on 25 lates subgroup sample-------------------
+#-----------Calculate process indicator subgroup sample-------------------
 @st.cache(allow_output_mutation=True) # Mo them vao sau nay
 def process_performance2(df):
   constants={
@@ -757,7 +784,7 @@ final_data_2,process_indicator_df_2,name_list_dict_2= create_process_indicator2(
 
 #------------------------Show process indicator-----------------------------#
 st.subheader("Process indicator: Cp, Pb, Cpk, Ppk")
-limit=st.number_input("Please input lower limit of Cpk and Ppk",value=1.33,key="input2")
+limit=st.number_input("Please input lower limit of Cpk and Ppk",value=1.0,key="input2")
 limit=float(limit)
 #limit = 1.33  # sigma: 4, Yield: 99.99%   
 #@st.cache(allow_output_mutation=True) # Moi them vao
@@ -769,7 +796,7 @@ st.dataframe(process_indicator_df_highlight2)
 #-----------------------Select process to show--------------------------------#
 st.subheader('Select process to show:')
 process_list2=list(final_data_2.keys())
-process_select2 = st.multiselect('Select process to show: ', process_list2)
+process_select2 = st.multiselect('Select process to show: ', process_list2,default=process_select)
 
 #st.write('You selected:', process_select)
 
@@ -781,11 +808,11 @@ end_date= st.text_input("Please input end Date (Ex:  2019, 2019/08, 2018/08/20)"
 
 #------------------------Control Chart group by hour--------------------------------------#
 st.header("Control chart group by hour")
-
+control_chart_remove_outlier2=st.checkbox('Remove outlier for control chart',key="outlier2")
 #@st.cache(suppress_st_warning=True,allow_output_mutation=True)
 #@st.cache(suppress_st_warning=True,allow_output_mutation=True)
 if st.checkbox('Please tick to this box if you need to show control chart',key="box_2"):
-    fig_line_chart2=line_chart_by_hour(final_data_2,process_select2,name_list_dict_2)    
+    fig_line_chart2=line_chart_by_hour(final_data_2,process_select2,name_list_dict_2,control_chart_remove_outlier2)    
     for fig in fig_line_chart2:
         st.plotly_chart(fig)
         
@@ -793,7 +820,7 @@ if st.checkbox('Please tick to this box if you need to show control chart',key="
 
 st.header("Box chart by hour")
 if st.checkbox('Show box chart by hour',key="box_3"):
-    fig_box_chart_hour2=box_chart(final_data_2,process_select2,name_list_dict_2,'Hour')    
+    fig_box_chart_hour2=box_chart(final_data_2,process_select2,name_list_dict_2,'Hour',control_chart_remove_outlier2)    
     for fig in fig_box_chart_hour2:
         st.plotly_chart(fig)
     
@@ -801,7 +828,7 @@ if st.checkbox('Show box chart by hour',key="box_3"):
 st.header("Box chart by day")
 
 if st.checkbox('Show box chart by day',key="box_4"):
-    fig_box_chart_day2=box_chart(final_data_2,process_select2,name_list_dict_2,'Day')     
+    fig_box_chart_day2=box_chart(final_data_2,process_select2,name_list_dict_2,'Day',control_chart_remove_outlier2)     
     for fig in fig_box_chart_day2:
         st.plotly_chart(fig)
     
@@ -809,7 +836,7 @@ if st.checkbox('Show box chart by day',key="box_4"):
 st.header("Box chart by week")
 
 if st.checkbox('Show box chart by week',key="box_5"):
-    fig_box_chart_week2=box_chart(final_data_2,process_select2,name_list_dict_2,'Week')    
+    fig_box_chart_week2=box_chart(final_data_2,process_select2,name_list_dict_2,'Week',control_chart_remove_outlier2)    
     for fig in fig_box_chart_week2:
         st.plotly_chart(fig)
 
